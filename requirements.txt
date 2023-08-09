@@ -1,0 +1,11 @@
+keras
+matplotlib
+numpy
+pandas
+requests
+scipy
+sklearn
+tensorflow
+urllib3
+spacy
+nltk

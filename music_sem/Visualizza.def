@@ -1,0 +1,61 @@
+# α-a β-b γ-c δ-d ε-e ζ-f η-g θ-h ι-i κ-l λ-k μ-l ν-m ξ-n ο-o π-p ρ-q σ-r ς-r τ-s υ-t φ-u ψ-v ω-x χ-y  
+# http://htmlhelp.com/reference/html40/entities/symbols.html
+NGrid
+5 6
+#XBound
+0 200000
+#YBound
+-100 -25
+FontSize
+26
+RatioWidthHeight
+1. 1.3
+DigPrecX
+0 f
+DigPrecY
+0 f
+#ViewportX
+0.05
+#ViewportY
+0.05
+LabelX
+tempo [ms]
+LabelY
+entropia
+#Title
+Tension Profile
+#ScaleX
+1.0	
+#OffSetX
+-9.9
+#ScaleY
+3.9
+PosLegend
+.7 .6 .9 .9
+PosInterp
+.5 .9 
+Line
+1 #number of line
+0.7 0.0 0.4 1.0 #color
+2 # 0 no line, 1 dots, 2 lines, 3 lines and dots
+ritmico
+Line
+2 #number of line
+0.0 0.7 0.0 1.0 #color
+2 # 0 no line, 1 dots, 2 lines, 3 lines and dots
+cromatico
+Line
+3 #number of line
+0.0 0.0 0.7 1.0 #color
+2 # 0 no line, 1 dots, 2 lines, 3 lines and dots
+totale
+Line
+4 #number of line
+0.5 0.2 0.7 1.0 #color
+2 # 0 no line, 1 dots, 2 lines, 3 lines and dots
+thickness
+#PutStr
+0. 0. 0. 1.
+.17 .84 0 16
+S 1 H 4
+
