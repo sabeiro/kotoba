@@ -1,5 +1,5 @@
 ---
-title: "Antani"
+title: "Kotoba"
 author: Giovanni Marelli
 date: 2019-11-18
 rights:  Creative Commons Non-Commercial Share Alike 3.0
@@ -9,136 +9,96 @@ output:
 		variant: markdown_strict+backtick_code_blocks+autolink_bare_uris+markdown_github
 ---
 
-# antani
+# kotoba
 
-Ant - agent/network intelligence 
-
-![antani_logo](docs/f_ops/antani_logo.svg "antani logo")
-
-_ants optimizing paths on a network_
-
-Antani is an agent/network based optimization engine for field operations
+> Kotoba: Ereignisse der Anmut 
+>
+> -- <cite>Martin Heiddeger</cite>
 
 
-# Content
+Libraries for text generation, text statistics and processing.
 
-## frontend
+# text generation
 
-We provide a [frontend solution](http://dauvi.org/antani_viz/) under the production vpn
+In text generation we build a model trained on sequences like:
 
-![frontend](f_ops/antani_frontend.png "antani frontend")
+* prompt / answers
+* text / text with blanks
+* language 1 / language 2
+* sequence n / sequence n + 1
 
-And a video explaining the [functioning of the frontend](http://10.0.49.178/antani_demo.mp4)
+The model would learn how to map the input and output and learn how to answer, complete text, translate...
 
-## infra
+The model is composed by an **encoder and a decoder**, we start from long-short-term-memory models and we evolve into transformers.
 
-[infrastructural design](docs/antani_infra.md) 
+There are different procedures to **preprocess and parse** the text to be able to feed the data into the model.
 
-* backend - endpoints
-* frontend
-* aws/productization
+## text preprocessing
 
-![design](docs/f_ops/engine_design.svg "engine design")
+We use this [text preprocessing routine](https://github.com/sabeiro/kotoba/kotoba/clean_text.py) to clean and simplify the text
 
-_infra design_
+* lowercase
+* stemming - remove suffixes
+* remove puctuation, double spaces
+* clean hyperlinks
+* remove stopwords
 
-## getting started 
+After we preprocessed the text we create a corpus using the remaning lemmas and choose a **vocabulary**. Usually the words for the vocabulary are chosen as the most frequent until a maximum vocabulary size.
 
-### installation
+## tokenization
 
-Install the relevant libraries with python>=3.6
+For each model we select a maximum number of lemmas and create a token for each word depending on the occurency in the training data set. 
 
-```
-pip3 install -r requirements.txt
-```
-### docker 
+* set a lower occurence frequency
+* vocabular size
+* handle punctuation
 
-Build the docker container from the Docker file
+A token can be a caracter, a word, a bag of words... To reduce the token dimension we can introduce semantic relationship between lemmas as per word2vec. 
 
-```
-docker build .
-```
+The tokens need to be **reshaped** as the model needs, usually adding an additional dimension for batching.
 
-### start
+We need to save a consistent function to preprocess the text, select the words for the vocabulary, tokenize and reshape the data.
 
-Start the service 
+## models
 
-```
-./script/start_server.sh
-```
+We use and compare different models.
 
-### apache
+Different models tried to learn natural language sequences starting with [long short term memory](https://github.com/sabeiro/kotoba/kotoba/text_gen_lstm.py) where we use two layers of LSTM of 256 characters and where the model learns the next character. Results are usually poor and lack of semantic consitency.
 
-Eventually activate apache and do a proxy on the port to avoid CORS restrictions
+[Transformers](https://github.com/sabeiro/kotoba/kotoba/gen_text_gpt.py) focus on attention maps and learn flexibly the cross correlation of words and sequences. Transformers have a built in positional embedding that helps learning grammmar features. 
 
-```
-./script/apache.sh
-```
+With [BERT](https://github.com/sabeiro/kotoba/kotoba/bert_transformer.py) we show an extended example of a BERT architecture with its [characteristic features](https://www.tensorflow.org/text/tutorials/transformer).
 
-configuration files in:
+## generative results
 
-```
-./conf/antani_apache.conf
-./conf/antani-apache-le-ssl.conf
-./onc/enable_proxy.sh
-```
-## testing
+We use the [routine](https://github.com/sabeiro/kotoba/example/text_translate.py) to load example files and test the different models.
 
-test scripts are in the folder
+## word2vec
 
-```
-tests/
-```
+in [word2vec](https://github.com/sabeiro/kotoba/kotoba/word2vec.py) we use a shallow neural network to understand similarity between lemmas and reduce text input dimensions. 
 
-### examples
+We analyze different documents and create 2-3 dimensional plots to show dimension reduction and clustering of words. In practive 3d are too few for an effective embedding of text.
 
-In the folder `examples` there are few applications to run the library independently from the backend
+![vec2d](../f/f_kotoba/vec2d_1.png "vect 2d")
+_private conversations_
 
-### pre-trained model
+![vec2d](../f/f_kotoba/vec2d_4.png "vect 2d")
+_private conversations_
 
-Pre trained models are in the `train` folder.
+![vec2d](../f/f_kotoba/vec2d_5.png "vect 2d")
+_private conversations_
 
-## kpi
+![vec2d](../f/f_kotoba/vec2d_7.png "vect 2d")
+_private conversations_
 
-[kpi comparison](docs/antani_kpi.md)
+A 3d representation shows a more complex structure
 
-* definition of kpis
-* different kpi per run
+![vec3d](../f/f_kotoba/vec3d_2.png "vect 2d")
+_private conversations_
 
-![kpi](docs/f_ops/kpi_comparison.png "kpi comparison")
+![vec3d](../f/f_kotoba/vec3d_3.png "vect 2d")
+_private conversations_
 
-_kpi comparison_
 
-## engine
 
-[engine functionalities](docs/mallink_engine.md) 
-
-* list of moves
-* performances
-
-![engine](docs/f_ops/vid_phantom.gif "engine")
-
-_engine description_
-
-## graph
-
-[graph building utilities](docs/geomadi_graph.md)
-
-* retrieving a network
-* building and fixing a graph
-
-![graph](docs/f_ops/graph_detail.png "graph detail")
-
-_graph formation_
-
-## concept
-
-[basic concepts](docs/antani_concept.md)
-
-* agent
-* network optimization
-
-![antani_concept](docs/f_ops/antani_concept.svg "antani concept")
-
-_antani concept schema_
 
