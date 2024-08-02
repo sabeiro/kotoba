@@ -1,6 +1,8 @@
+# https://keras.io/examples/nlp/neural_machine_translation_with_transformer/
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+from tensorflow.keras.models import Sequential, model_from_json
 
 class TransformerEncoder(layers.Layer):
     def __init__(self, embed_dim, dense_dim, num_heads, **kwargs):
@@ -130,3 +132,21 @@ def trans_model(opt):
   print(transformer.summary())
   transformer.compile("rmsprop", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
   return transformer
+
+
+def save_model(model,fileN):
+#     model.save(fileN)
+    model_json = model.to_json()
+    with open(fileN+".json", "w") as json_file:
+        json_file.write(model_json)
+    model.save_weights(fileN+".h5")
+
+def load_gen_model(fileN):
+#     model = tf.keras.models.load_model(fileN)
+    with open(fileN + '.json', 'r') as json_file:
+        loaded_model_json = json_file.read()
+    loaded_model = model_from_json(loaded_model_json)
+    tf.keras.models.model_from_json(loaded_model_json, custom_objects=None)
+    loaded_model.load_weights(fileN + '.h5')
+    return loaded_model
+    

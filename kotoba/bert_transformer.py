@@ -4,7 +4,6 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
-import tensorflow_text
 
 def positional_encoding(length, depth):
   depth = depth/2
@@ -34,11 +33,12 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     return x
 
 class Translator(tf.Module):
-  def __init__(self, tokenizers, transformer):
+  def __init__(self, tokenizers, transformer, max_tokens):
     self.tokenizers = tokenizers
     self.transformer = transformer
+    self.max_tokens = max_tokens
 
-  def __call__(self, sentence, max_length=MAX_TOKENS):
+  def __call__(self, sentence):
     assert isinstance(sentence, tf.Tensor)
     if len(sentence.shape) == 0:
       sentence = sentence[tf.newaxis]
@@ -49,7 +49,7 @@ class Translator(tf.Module):
     end = start_end[1][tf.newaxis]
     output_array = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
     output_array = output_array.write(0, start)
-    for i in tf.range(max_length):
+    for i in tf.range(self.max_tokens):
       output = tf.transpose(output_array.stack())
       predictions = self.transformer([encoder_input, output], training=False)
       predictions = predictions[:, -1:, :]  # Shape `(batch_size, 1, vocab_size)`.
@@ -92,14 +92,15 @@ def plot_attention_weights(sentence, translated_tokens, attention_heads):
 
 
 class ExportTranslator(tf.Module):
-  def __init__(self, translator):
+  def __init__(self, translator, max_tokens):
     self.translator = translator
+    self.max_tokens = max_tokens
 
   @tf.function(input_signature=[tf.TensorSpec(shape=[], dtype=tf.string)])
   def __call__(self, sentence):
     (result,
      tokens,
-     attention_weights) = self.translator(sentence, max_length=MAX_TOKENS)
+     attention_weights) = self.translator(sentence, max_length=self.max_tokens)
 
     return result
 
@@ -142,7 +143,7 @@ class GlobalSelfAttention(BaseAttention):
     return x
 
 
-  class CausalSelfAttention(BaseAttention):
+class CausalSelfAttention(BaseAttention):
   def call(self, x):
     attn_output = self.mha(
         query=x,
@@ -246,13 +247,13 @@ class Decoder(tf.keras.layers.Layer):
     super(Decoder, self).__init__()
     self.d_model = d_model
     self.num_layers = num_layers
-    self.pos_embedding = PositionalEmbedding(vocab_size=vocab_size,
+    self.pos_embedding = PositionalEmbedding(vocab_size=vocab_size,d_model=d_model)
     self.dropout = tf.keras.layers.Dropout(dropout_rate)
     self.dec_layers = [
         DecoderLayer(d_model=d_model, num_heads=num_heads,
                      dff=dff, dropout_rate=dropout_rate)
-        # for _ in range(num_layers)]
- 
+        for _ in range(num_layers)]
+
     self.last_attn_scores = None
 
   def call(self, x, context):
@@ -260,10 +261,11 @@ class Decoder(tf.keras.layers.Layer):
     x = self.dropout(x)
     for i in range(self.num_layers):
       x  = self.dec_layers[i](x, context)
+
     self.last_attn_scores = self.dec_layers[-1].last_attn_scores
     return x
 
-
+  
 class Transformer(tf.keras.Model):
   def __init__(self, *, num_layers, d_model, num_heads, dff,
                input_vocab_size, target_vocab_size, dropout_rate=0.1):

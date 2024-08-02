@@ -1,0 +1,17 @@
+pandas
+streamlit
+pypdf2
+langchain
+langchain_community
+langchain_chroma
+pymupdf
+pymupdf4llm
+python-dotenv
+unifyai
+faiss-cpu
+llama-index
+llama-index-vector-stores-faiss
+llama-index-vector-stores-chroma
+pip install sentence-transformers
+#openai
+#hugginface_hub

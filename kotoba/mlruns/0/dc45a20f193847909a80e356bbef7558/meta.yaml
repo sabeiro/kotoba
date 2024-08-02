@@ -1,0 +1,15 @@
+artifact_uri: file:///home/sabeiro/lav/src/kotoba/kotoba/mlruns/0/dc45a20f193847909a80e356bbef7558/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: dc45a20f193847909a80e356bbef7558
+run_name: auspicious-seal-41
+run_uuid: dc45a20f193847909a80e356bbef7558
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1721909996213
+status: 1
+tags: []
+user_id: sabeiro

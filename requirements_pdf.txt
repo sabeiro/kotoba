@@ -1,0 +1,6 @@
+camelot-py
+pandas
+ghostscript
+pdf-table-extract
+pdftabextract
+opencv-python
