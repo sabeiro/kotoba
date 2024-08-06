@@ -17,7 +17,6 @@ fName = "AM5386"
 fPath = baseDir + fName + '.pdf'
 fUrl = "https://www.olympus-ims.com/en/rvi-products/iplex-nx/#!cms[focus]=cmsContent13653"
 
-
 #-------------------------------------------------unstructured-----------------------------------
 from langchain_community.document_loaders import UnstructuredPDFLoader
 loader = UnstructuredPDFLoader(fPath, mode="elements")
@@ -63,6 +62,8 @@ data = loader.load()
 from langchain_community.document_loaders import AmazonTextractPDFLoader
 from textractor.data.constants import TextractFeatures
 from textractor import TExtractor
+from textractor import Textractor
+
 
 loader = AmazonTextractPDFLoader(baseDir + "szx7.png")
 documents = loader.load()
@@ -72,6 +73,15 @@ document = extractor.analyze_document(
 	features=[TextractFeatures.TABLES]
 )
 document.tables[0].to_excel(baseDir+"output.xlsx")
+
+extractor = Textractor(profile_name="default")
+from textractor.data.constants import TextractFeatures
+document = extractor.analyze_document(
+    file_source="tests/fixtures/form.png",
+    features=[TextractFeatures.TABLES]
+)
+document.tables[0].to_excel("output.xlsx")
+
 
 #-----------------------------------------azure------------------------------------------------
 
@@ -156,12 +166,15 @@ print(detector.from_file(fPath))
 
 import pymupdf
 import pymupdf4llm
+import markdown
 with pymupdf.open(fPath) as doc:  
     text = chr(12).join([page.get_text() for page in doc])
 
 pathlib.Path(baseDir + fName + ".txt").write_bytes(text.encode())
 md_text = pymupdf4llm.to_markdown(fPath)
 pathlib.Path(baseDir + fName + ".md").write_bytes(md_text.encode())
+html_text = markdown(md_text,extensions=['markdown.extensions.tables'])
+pathlib.Path(baseDir + fName + ".html").write_bytes(html_text.encode())
 
 #---------------------------------------beatifulsoup---------------------------------------------
 
