@@ -1,3 +1,7 @@
+mlruns
+cache 
+traking_uri*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

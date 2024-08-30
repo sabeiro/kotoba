@@ -3,12 +3,16 @@ import os, sys, json, re
 import mlflow
 import pandas as pd
 import numpy as np
+import openai
 from mlflow.metrics import rougeLsum, rouge2
 from mlflow.metrics.genai import EvaluationExample, faithfulness, answer_similarity, make_genai_metric, answer_relevance, answer_correctness, faithfulness
 from mlflow.models import MetricThreshold, infer_signature
 from langchain.evaluation.qa import QAEvalChain
 #python3 -m mlflow server --host 0.0.0.0 --port 5151
 #python3 -m mlflow gc
+#llm = openai.OpenAI(api_key=os.environ['UNIFY_KEY'],base_url="https://api.unify.ai/v0/")
+llm = openai.OpenAI(api_key=os.environ['OPENAI_API_KEY'])
+#completion = llm.chat.completions.create(model=modL[0],messages=[{"role": "user", "content": "write a haiku about ai"}])
 
 os.environ['LAV_DIR'] = '/home/sabeiro/lav/'
 baseDir = os.environ['HOME'] + '/lav/dauvi/portfolio/audit/'
@@ -17,6 +21,7 @@ collN = re.sub(".pdf","",pdf_doc).split("/")[-1]
 dL = os.listdir(os.environ['LAV_DIR']+'/src/')
 sys.path = list(set(sys.path + [os.environ['LAV_DIR']+'/src/'+x for x in dL]))
 import kotoba.chatbot_utils as c_t
+import kotoba.evaluation_metric as e_m
 import importlib
 
 ansDf = pd.read_csv(baseDir + "pred_openai.csv")
@@ -39,17 +44,26 @@ if experiment is None:
   experiment = ml_client.get_experiment_by_name(exp_name)
 mlflow.set_experiment(exp_name)
 
-thresholds = {"accuracy_score": MetricThreshold(threshold=0.8,min_absolute_change=0.05,min_relative_chx`ange=0.05,greater_is_better=True)}
-
+thresholds = {"accuracy_score": MetricThreshold(threshold=0.8,min_absolute_change=0.05,min_relative_change=0.05,greater_is_better=True)}
 signature = infer_signature(ansDf['ref_answer'],ansDf['pred_answer'])
 
-with mlflow.start_run(experiment_id=experiment.experiment_id) as run:
-  # mlflow.sklearn.log_model(model, "model", signature=signature)
-  # model_uri = mlflow.get_artifact_uri("model")
-  resL = mlflow.evaluate(data=ansDf,targets="pred_answer",predictions="ref_answer",model_type="classifier",evaluators="default")
+if False: #confusion matrix
+  with mlflow.start_run(experiment_id=experiment.experiment_id) as run:
+    # mlflow.sklearn.log_model(model, "model", signature=signature)
+    # model_uri = mlflow.get_artifact_uri("model")
+    resL = mlflow.evaluate(data=ansDf,targets="pred_answer",predictions="ref_answer",model_type="classifier",evaluators="default")
 
+importlib.reload(e_m)
+question = ['What is a test?','Is there any test 1 string','What test is ?']
+ref_answer = ['This is test 1 string','This is test 1 string','This is test 1 string']
+pred_answer = ['This is test 1 string','This is test 2 string',"That's test 1 string"]
+with mlflow.start_run(experiment_id=experiment.experiment_id):
+  evaluator = e_m.Evaluate(reduction='mean',device='cpu')
+  metric = evaluator.run(preds=pred_answer,target=ref_answer,questions=question)
+  print(metric)
+  mlflow.log_metrics(metric)
 
-
+    
 artL, runL = [], []
 artifactN = "evaluate_openai"
 modelN = "gpt-4o-mini"
@@ -69,8 +83,6 @@ with mlflow.start_run(experiment_id=experiment.experiment_id) as run:
 
 
 answer_similarity_metric = answer_similarity(model="openai:/gpt-4")
-
-
 with mlflow.start_run() as run:
   candidate_model_uri = mlflow.sklearn.log_model(candidate_model,"candidate_model",signature=signature).model_uri
   baseline_model_uri = mlflow.sklearn.log_model(baseline_model,"baseline_model",signature=signatur.model_urie)
@@ -88,7 +100,6 @@ set_deployments_target("http://localhost:5151")
 
 
 #--------------------------------------ragas-qeval------------------------------
-
 from ragas import evaluate
 from ragas.metrics import faithfulness, answer_correctness, context_recall, context_precision
 from sacrerouge.metrics import QAEval
@@ -132,8 +143,6 @@ relevancy_gpt4 = RelevancyEvaluator(service_context=service_context_gpt4)runner 
 )
 
 #------------------------------------bedrock-----------------------------------------
-
-
 import boto3
 client = boto3.client('bedrock')
 
@@ -163,7 +172,6 @@ professionalism_example_score_4 = mlflow.metrics.genai.EvaluationExample(
     score=4,
     justification=("The response is written in a formal language and a neutral tone. "),
 )
-
 professionalism = mlflow.metrics.genai.make_genai_metric(
     name="professionalism",
     definition=("Professionalism refers to the use of a formal, respectful, and appropriate style of communication that is tailored to the context and audience. It often involves avoiding overly casual language, slang, or colloquialisms, and instead using clear, concise, and respectful language."
@@ -244,7 +252,26 @@ dataset = Dataset.from_dict(data)
 
 
 
+from pandasai import SmartDataframe
+from pandasai.llm import OpenAI
+llm = OpenAI()  
+implexD = SmartDataframe(baseDir + "implex.csv", config={"llm": llm})
+resp = implexD.chat("What is the scope diameter")
 
 
+if False:
+  from selfcheckgpt.modeling_selfcheck import SelfCheckMQAG, SelfCheckBERTScore, SelfCheckNgram
+  device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+  selfcheck_mqag = SelfCheckMQAG(device=device) # set device to 'cuda' if GPU is available
+  selfcheck_bertscore = SelfCheckBERTScore(rescale_with_baseline=True)
+  selfcheck_ngram = SelfCheckNgram(n=1) # n=1 means Unigram, n=2 means Bigram, etc.
+  passage = "Michael Alan Weiner (born March 31, 1942) is an American radio host. He is the host of The Savage Nation."
+  sentences = [sent.text.strip() for sent in nlp(passage).sents] # spacy sentence tokenization
+  sample1 = "Michael Alan Weiner (born March 31, 1942) is an American radio host. He is the host of The Savage Country."
+  sample2 = "Michael Alan Weiner (born January 13, 1960) is a Canadian radio host. He works at The New York Times."
+  sample3 = "Michael Alan Weiner (born March 31, 1942) is an American radio host. He obtained his PhD from MIT."
+  sent_scores_mqag = selfcheck_mqag.predict(sentences=sentences,passage=passage,sampled_passages=[sample1, sample2, sample3],num_questions_per_sent=5,scoring_method='bayes_with_alpha',beta1=0.8,beta2=0.8)
+  sent_scores_bertscore = selfcheck_bertscore.predict(sentences=sentences,sampled_passages=[sample1, sample2, sample3])
+  sent_scores_ngram = selfcheck_ngram.predict(sentences=sentences,passage=passage,sampled_passages=[sample1, sample2, sample3])
 
 

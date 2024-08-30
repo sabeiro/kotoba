@@ -1,0 +1,5 @@
+torch
+torchmetrics
+langchain
+sentence_transformer
+

@@ -9,3 +9,12 @@ scikit-learn
 urllib3
 spacy
 nltk
+langchain
+langchain_openai
+langchain_community
+llama_index
+llmsherpa
+unifyai
+sentence_transformers
+torch
+chromadb
