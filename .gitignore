@@ -1,4 +1,7 @@
 mlruns
+mlartifacts
+tracking_uri
+.streamlit
 cache 
 traking_uri*
 
