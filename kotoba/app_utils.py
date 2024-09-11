@@ -21,6 +21,19 @@ def clear_history():
     if "messages" in st.session_state:
         st.session_state.messages = []
 
+def cite_response():
+    """Cite a reference."""
+    messL = st.session_state.messages
+    query = messL[-1][0]
+    retriever = get_retriever()
+    docL = retriever.get_relevant_documents(query)
+    docT = [x.page_content for x in docL]
+    docS = "Following list of original documents\n\n"
+    for i,s in enumerate(docT):
+        docS += "-------- Citation " + str(i+1) + " )\n\n" + s
+    st.session_state.messages.append(("Citations for: " + query,docS))
+    
+
 def output_chunks(chain, query):
     """Generates answers for the given query and a chain.
 
@@ -54,8 +67,6 @@ def field_callback(field):
     """Displays a toast message when a field is updated."""
     st.toast(f"{field} Updated Successfully!", icon="🎉")
 
-
-    
 def process_inputs():
     """Processes the user inputs and performs vector storage."""
     
@@ -69,6 +80,8 @@ def process_inputs():
             st.write("Performing Vector Storage")
             if st.session_state.vector_selection == "FAISS":
                 st.session_state.vector_store = c_t.faiss_vector_storage(docL,collN="web",baseDir=baseDir)
+            if st.session_state.vector_selection == "chromadb":
+                st.session_state.vector_store = c_t.create_collection(docL,collN="web",baseDir=baseDir)
             elif st.session_state.vector_selection == "Pinecone":
                 st.session_state.vector_store = c_t.pinecone_vector_storage(docL)
 
@@ -103,7 +116,19 @@ def get_retriever():
     )
     return retriever
 
-
+def agent_definition():
+    agentDef = "You are an assistant for question-answering tasks."
+    if st.session_state.agent_selection == "👶 simple":
+        agentDef = "You are an assistant who is able to interact with a child."
+    elif st.session_state.agent_selection == "🧑‍🎓 academic":
+        agentDef = "You are an assistant providing academic level of answers."
+    elif st.session_state.agent_selection == "🧑‍🔧 technical":
+        agentDef = "You are a technical expert explaining the solution in detail"
+    elif st.session_state.agent_selection == "🧑‍🏫 didactic":
+        agentDef = "You are a teacher explaining in a didactic way to a large audience"
+    elif st.session_state.agent_selection == "🤖 concise":
+        agentDef = "You are a really concise assistant provinding answers in few words."
+    return agentDef + "\n"
 
 def chat_bot():
     """ Takes user queries and generates responses. It writes the user query and the response to the chat window."""
@@ -118,10 +143,11 @@ def chat_bot():
 
         retriever = get_retriever()
         model = c_t.get_llm()
+        agentDef = agent_definition()
         if not st.session_state.history_unaware:
-          rag_engine = c_t.create_conversational_rag_chain(model, retriever, get_history)
+          rag_engine = c_t.create_conversational_rag_chain(model, retriever, get_history, agentDef)
         else:
-          rag_engine = c_t.create_qa_chain(model, retriever)
+          rag_engine = c_t.create_qa_chain(model, retriever, agentDef)
           
         response = st.chat_message("assistant").write_stream(output_chunks(rag_engine, query))
         if not st.session_state.history_unaware:

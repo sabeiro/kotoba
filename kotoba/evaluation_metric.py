@@ -6,6 +6,36 @@ from torchmetrics import Metric, MetricCollection
 from mlflow.metrics import EvaluationMetric, MetricValue
 from sentence_transformers import SentenceTransformer
 
+class MLFlowMetric:
+    metric_name = None
+    metric_long_name = None
+    def get_joint_batches(self):
+        return torch.cat([t.reshape(1,-1) for t in self.probs],dim=1)
+
+    @classmethod
+    def as_mlflow(cls,**kwargs):
+        metric = cls(**kwargs)
+
+        def _eval_function(
+                metric: Metric, prediction: pd.Series, targets: pd.Series,
+                questios: pd.Series, metrics: t.Dict[str, MetricValue] = None) -> t.Union[float,MetricValue]:
+            metric.reset()
+
+            preds = predictions.tolist()
+            targets = targets.tolist()
+            questions = questions.tolist()
+            metric.update(preds=preds, target=targets, questions=questions)
+            score = metric.compute()
+            per_row_scores = metric.get_joint_batches().flatten().tolist()
+            return MetricValue(
+                scores=per_row_scores, aggregate_results={metric.reduction: score[metric.metric_name].item()})
+        return EvaluationMetric(
+            eval_fn=partial(_eval_func, metric),
+            name=cls.metric_name,
+            greater_is_better=False,
+            long_name=cls.metric_long_name)
+
+
 class TrueRelevancy(Metric, MLFlowMetric):
     metric_name = "true relevancy"
     metric_long_name = "cosine similarity on true/false answers"
@@ -92,35 +122,5 @@ reduction_map = {
     None: lambda x: x,
 }
         
-class MLFlowMetric:
-
-    metric_name = None
-    metric_long_name = None
-    
-    def get_joint_batches(self):
-        return torch.cat([t.reshape(1,-1) for t in self.probs],dim=1)
-
-    @classmethod
-    def as_mlflow(cls,**kwargs):
-        metric = cls(**kwargs)
-
-        def _eval_function(
-                metric: Metric, prediction: pd.Series, targets: pd.Series,
-                questios: pd.Series, metrics: t.Dict[str, MetricValue] = None) -> t.Union[float,MetricValue]:
-            metric.reset()
-
-            preds = predictions.tolist()
-            targets = targets.tolist()
-            questions = questions.tolist()
-            metric.update(preds=preds, target=targets, questions=questions)
-            score = metric.compute()
-            per_row_scores = metric.get_joint_batches().flatten().tolist()
-            return MetricValue(
-                scores=per_row_scores, aggregate_results={metric.reduction: score[metric.metric_name].item()})
-        return EvaluationMetric(
-            eval_fn=partial(_eval_func, metric),
-            name=cls.metric_name,
-            greater_is_better=False,
-            long_name=cls.metric_long_name)
         
 

@@ -1,0 +1,5 @@
+.stChatMessage {
+/* div[class^="st-emotion-cache-"] { */
+    overflow: scroll;
+    max-height: 200px;
+}

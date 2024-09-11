@@ -7,7 +7,7 @@ from tabs.generate import generate_code_tab
 def session_add(key, value, is_func=False):
     """
     Adds a key-value pair to the session state.
-    
+
     Args:
         - key (str): The key to add to the session state.
         - value (str): The value to add to the session state.
@@ -25,6 +25,7 @@ def init_keys():
     # All new session variables should be added here.
     session_add("chroma_persisted", False)
     session_add("vector_selection", "FAISS")
+    session_add("agent_selection", "🧑‍🔧 technical")
     session_add("embedding_model", "HuggingFaceEmbeddings")
     session_add("chunk_size", 1000)
     session_add("chunk_overlap", 100)
@@ -42,6 +43,8 @@ def init_keys():
 def render_site():
     """Configures and displays the landing page."""
     st.set_page_config("Document checker", page_icon="👁️‍🗨️")
+    with open("tabs/custom.css") as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
     st.title("Knowledge base LLM 💬")
     st.text("Chat with your PDF file using the LLM of your choice")
     st.write('''

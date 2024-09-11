@@ -3,7 +3,6 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 from typing import Dict
 from langchain.output_parsers import RegexParser
 
-
 promptConf = """You are an agent designed to answer questions. You are give a context delimited by triple backticks.
 Don't give information not mentioned in the context. If you don't know the answer just say I don't know.
 In additon to the answer provide the reason. The reason should be explanation why you think this answer is correct. Use context to generate reason. You may also revise the original input if you think that revising it may ultimately lead to a better response.

@@ -15,10 +15,10 @@ def generate_src():
     
     if st.session_state["embedding_model"] == "HuggingFaceEmbeddings":
         if st.session_state["vector_selection"] == "FAISS":
-            code_path = "../data/faiss_huggingface.py"
+            code_path = "./data/faiss_huggingface.py"
             file_path = (base_path / code_path).resolve()
         elif st.session_state["vector_selection"] == "Pinecone":
-            code_path = "../data/pinecone_huggingface.py"
+            code_path = "./data/pinecone_huggingface.py"
             file_path = (base_path / code_path).resolve()
                 
     with (open(file_path, "r") as f):

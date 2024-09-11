@@ -12,9 +12,15 @@ nltk
 langchain
 langchain_openai
 langchain_community
+langchain-huggingface
 llama_index
+llama-index-vector-stores-postgres
+llama-index-vector-stores-faiss
 llmsherpa
 unifyai
 sentence_transformers
-torch
+
+tf-keras
+
 chromadb
+faiss

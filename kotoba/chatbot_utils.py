@@ -1,30 +1,40 @@
 import os, re, sys, json
 import kotoba.chatbot_prompt as c_p
+from langchain import hub
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.text_splitter import MarkdownTextSplitter, MarkdownHeaderTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
-from langchain.chat_models import ChatOpenAI
-#from langchain_openai import ChatOpenAI
+from langchain_core.runnables import RunnableLambda
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
-from langchain import hub
-#from langchain_core.documents import Document # with page_content
-from llama_index.core import Document
-from llama_index.core.node_parser import SimpleFileNodeParser
-from llama_index.core.node_parser import MarkdownElementNodeParser
-from llama_parse import LlamaParse
-#from llama_parse import LlamaParse  # pip install llama-parse
+from langchain_core.chat_history import BaseChatMessageHistory
+#from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
+from langchain_huggingface import HuggingFaceEmbeddings
+#from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_core.documents import Document # with .page_content
+#from llama_index.core import Document # with .text
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.history_aware_retriever import create_history_aware_retriever
 from langchain.chains.retrieval import create_retrieval_chain
 # from langchain.chains import create_retrieval_chain
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-# from langchain_unify.chat_models import ChatUnify
-from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_community.chat_models import ChatOpenAI
+from llama_index.core.node_parser import SimpleFileNodeParser
+from llama_index.core.node_parser import MarkdownElementNodeParser
+from llama_parse import LlamaParse
+#from langchain.vectorstores import Chroma
+from langchain_community.vectorstores import Chroma
+import chromadb
+from chromadb.utils import embedding_functions
+from llama_index.core import SimpleDirectoryReader, load_index_from_storage, VectorStoreIndex, StorageContext
+from langchain_community.vectorstores import FAISS
+
+#from langchain_pinecone import PineconeVectorStore
+
 
 #--------------------------------------parse-pdf--------------------------------------------------
 
@@ -46,9 +56,9 @@ def pdf2tree(pdf_doc):
             sectS += p.to_text()
         if sectS == '':
             sectS = '-'
-        docL.append(Document(text=sectS,metadata={"sect":s.to_context_text(),"lev":s.level}))
+        docL.append(Document(page_content=sectS,metadata={"sect":s.to_context_text(),"lev":s.level}))
     for t in doc.tables():
-        docL.append(Document(text=t.to_text(),metadata={"table":s.block_idx,"lev":t.level}))
+        docL.append(Document(page_content=t.to_text(),metadata={"table":s.block_idx,"lev":t.level}))
     return docL
 
 def pdf2md(pdf_doc):
@@ -100,7 +110,7 @@ def pdf_page(pdf_docs,chunk_size=100,chunk_overlap=15):
         pdf_reader = PdfReader(pdf)
         for i, page in enumerate(pdf_reader.pages):
             text = page.extract_text()
-            docL.append(Document(text=text,metadata={"page":i}))
+            docL.append(Document(page_content=text,metadata={"page":i}))
     # text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size,chunk_overlap=chunk_overlap)
     # text_chunks = text_splitter.split_text(textL)
     return docL
@@ -148,16 +158,6 @@ def get_chat_message() -> BaseChatMessageHistory:
 
 #--------------------------------------vector-storage--------------------------------------------------
 
-from langchain.vectorstores import Chroma
-import chromadb
-from chromadb.utils import embedding_functions
-from llama_index.core import SimpleDirectoryReader, load_index_from_storage, VectorStoreIndex, StorageContext
-# from llama_index.vector_stores.faiss import FaissVectorStore
-#import faiss
-from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
-
-#from langchain_pinecone import PineconeVectorStore
 
 def create_collection(docL,collN,baseDir):
     """create two collections from a pdf, chapter wise and their summaries.
@@ -167,15 +167,38 @@ def create_collection(docL,collN,baseDir):
         collT, collS: collection of texts and theirs summaries
     """
     try:
-        textL = [x.text for x in docL]
-    except:
         textL = [x.page_content for x in docL]        
+    except:
+        textL = [x.text for x in docL]
+    metaL = [x.metadata for x in docL]
+    idL = ["%06d" % x for x in range(len(textL))]
+    client = chromadb.PersistentClient(path=baseDir + "/chroma")
+    openai_ef = embedding_functions.OpenAIEmbeddingFunction(model_name="text-embedding-ada-002",api_key=os.environ['OPENAI_API_KEY'])
+    embdL = openai_ef(textL)
+    try: 
+        client.delete_collection(name=collN+"_text")
+    except:
+        pass
+    collT = client.create_collection(name=collN+"_text",metadata={"hnsw:space":"cosine"},embedding_function=openai_ef)
+    collT.add(embeddings=embdL,documents=textL,metadatas=metaL,ids=idL)
+    return collT
+
+def create_collection_summary(docL,collN,baseDir):
+    """create two collections from a pdf, chapter wise and their summaries.
+    Args:
+        pdf_doc: A PDF document.
+    Returns:
+        collT, collS: collection of texts and theirs summaries
+    """
+    try:
+        textL = [x.page_content for x in docL]        
+    except:
+        textL = [x.text for x in docL]
     metaL = [x.metadata for x in docL]
     idL = ["%06d" % x for x in range(len(textL))]
     summL = create_summary(textL)
     client = chromadb.PersistentClient(path=baseDir + "/chroma")
     openai_ef = embedding_functions.OpenAIEmbeddingFunction(model_name="text-embedding-ada-002",api_key=os.environ['OPENAI_API_KEY'])
-    collN = re.sub(".pdf","",pdf_doc).split("/")[-1]
     # vectorstore = Chroma(collection_name="summaries",embedding_function=openai_af)
     # store = InMemoryByteStore()
     # retriever = MultiVectorRetriever(vectorstore=vectorstore,byte_store=store,id_key=collN,)
@@ -192,6 +215,8 @@ def create_collection(docL,collN,baseDir):
         pass
     collT = client.create_collection(name=collN+"_text",metadata={"hnsw:space":"cosine"},embedding_function=openai_ef)
     collS = client.create_collection(name=collN+"_summaries",metadata={"hnsw:space":"cosine"},embedding_function=openai_ef)
+    embdL = openai_ef(textL)
+    embsL = openai_ef(summL)
     collT.add(embeddings=embdL,documents=textL,metadatas=metaL,ids=idL)
     collS.add(embeddings=embsL,documents=summL,metadatas=metaL,ids=idL)
     return collT, collS
@@ -203,6 +228,8 @@ def faiss_vector_storage(docL,collN,baseDir):
     Returns:
         FAISS: A FAISS vector store.
     """
+    from llama_index.vector_stores.faiss import FaissVectorStore
+    import faiss
     try:
         textL = [x.text for x in docL]
     except:
@@ -312,7 +339,28 @@ def format_confidence(res):
         pass
     return res
 
-def create_conversational_rag_chain(model, retriever, get_history):
+def chain_inspect(model, retriever, question):
+    def inspect(state):
+        """Print the state passed between Runnables in a langchain and pass it on"""
+        print(state)
+        return state
+    
+    template = """Answer the question based only on the following context:
+    {context}
+    Question: {question}
+    """
+    prompt = ChatPromptTemplate.from_template(template)
+    chain = (
+        {"context": retriever, "question": RunnablePassthrough()}
+        | RunnableLambda(inspect)  # Add the inspector here to print the intermediate results
+        | prompt
+        | model
+        | StrOutputParser()
+    )
+    resp = chain.invoke("what is a data process agreement?")
+    return resp
+
+def create_conversational_rag_chain(model, retriever, get_history, agentDef=None):
     """
     Creates a conversational RAG chain. This is a question-answering (QA) system with the ability to consider historical context.
     Parameters:
@@ -321,33 +369,30 @@ def create_conversational_rag_chain(model, retriever, get_history):
     Returns:
     RunnableWithMessageHistory: The conversational chain that generates the answer to the query.
     """
-    system_prompt = ("You are an assistant for question-answering tasks. "
-        "Use the following pieces of retrieved context to answer "
-        "the question. If you don't know the answer, say that you "
-        "don't know. Use three sentences maximum and keep the "
-        "answer concise."
-        "\n\n"
-        "{context}")
-
+    if agentDef == None:
+        agentDef = "You are an assistant for question-answering tasks. \n"
+    system_prompt = (agentDef + "Use the following pieces of retrieved context to answer the question. "
+                     "If you don't know the answer, say that you don't know. "
+                     # "Use three sentences maximum and keep the answer concise."
+                     "\n\n"
+                     "{context}")
     contextualize_q_system_prompt = """Given a chat history and the latest user question \
     which might reference context in the chat history, formulate a standalone question \
     which can be understood without the chat history. Do NOT answer the question, \
     just reformulate it if needed and otherwise return it as is."""
-    contextualize_q_prompt = ChatPromptTemplate.from_messages([("system", contextualize_q_system_prompt),MessagesPlaceholder("chat_history"),("human", "{input}"),])
+    #contextualize_q_prompt = ChatPromptTemplate.from_messages([("system", contextualize_q_system_prompt),MessagesPlaceholder("chat_history"),("human", "{input}"),])
+    contextualize_q_prompt = ChatPromptTemplate.from_messages([("system",system_prompt),MessagesPlaceholder("chat_history"),("human", "{input}"),])
     #prompt = ChatPromptTemplate.from_messages([("system", system_prompt),("human", "{input}"),])
-    history_aware_retriever = create_history_aware_retriever(model,retriever |format_docs, contextualize_q_prompt)
-    system_prompt = """You are an assistant for question-answering tasks. \
-    Use the following pieces of retrieved context to answer the question. \
-    If you don't know the answer, just say that you don't know. \
-    {context}"""
+    history_aware_retriever = create_history_aware_retriever(model,retriever | format_docL, contextualize_q_prompt)
     prompt = ChatPromptTemplate.from_messages([("system", system_prompt),MessagesPlaceholder("chat_history"),("human", "{input}"),])
+    print(prompt)
     question_answer_chain = create_stuff_documents_chain(model, prompt)
     # rag_chain = create_retrieval_chain(retriever, question_answer_chain)
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
     conversational_rag_chain = RunnableWithMessageHistory(rag_chain,get_history,input_messages_key="input",history_messages_key="chat_history",output_messages_key="answer",)
     return conversational_rag_chain
 
-def create_qa_chain(model, retriever):
+def create_qa_chain(model, retriever, agentDef=None):
     """
     Creates a question-answering (QA) chain for a chatbot without considering historical context.
     Parameters:
@@ -356,8 +401,9 @@ def create_qa_chain(model, retriever):
     Returns:
     chain: it takes a user's query as input and produces a chatbot's response as output.
     """
-    qa_system_prompt = """You are an assistant for question-answering tasks. \
-    Use the following pieces of retrieved context to answer the question. \
+    if agentDef == None:
+        agentDef = "You are an assistant for question-answering tasks. \n"
+    qa_system_prompt = agentDef + """Use the following pieces of retrieved context to answer the question. \
     If you don't know the answer, just say that you don't know. \
     {context}"""
     qa_prompt_no_memory = ChatPromptTemplate.from_messages([("system", qa_system_prompt),("human", "{input}"),])

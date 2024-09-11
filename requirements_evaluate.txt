@@ -1,5 +1,5 @@
 torch
 torchmetrics
 langchain
-sentence_transformer
-
+sentence_transformers
+mlflow

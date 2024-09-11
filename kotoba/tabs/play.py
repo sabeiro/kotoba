@@ -1,5 +1,5 @@
 from streamlit_interface import st
-import app_utils as c_t
+import app_utils as a_u
 
 
 def playground_tab():
@@ -14,6 +14,10 @@ def playground_tab():
 
     with st.container(border=True):   
         
+        # Agent Selection
+        with st.expander("Agent selection"):
+            agent_selection = st.selectbox("Agent list", options=["👶 simple","🧑‍🎓 academic","🧑‍🔧 technical","🧑‍🏫 didactic","🤖 concise"])
+                
         # Vector Storage Selection
         with st.expander("Vector Storage"):
             if st.toggle("Use Online Vector Storage"):
@@ -23,7 +27,7 @@ def playground_tab():
                     st.session_state.pinecone_index = st.text_input("Pinecone Index")
                     st.write("⚠️: The index records will be cleared and started afresh")
             else:
-                vector_selection = st.selectbox("Select Local Vector Storage", options=["FAISS"])
+                vector_selection = st.selectbox("Select Local Vector Storage", options=["FAISS","chromadb"])
                 
         # Embedding Model Selection        
         with st.expander("Embedding Model"):
@@ -38,11 +42,11 @@ def playground_tab():
                 model_temperature = st.slider("temperature", key="slider_model_temperature", min_value=0.0,
                                               max_value=1.0, step=0.1, value=st.session_state.model_temperature,
                                               help="Temperature controls the randomness or creativity of the generated text")
-                st.button("Reset", on_click=c_t.reset_slider_value, args=(c_t.model_reset_dict,), key="model_param_reset")
+                st.button("Reset", on_click=a_u.reset_slider_value, args=(a_u.model_reset_dict,), key="model_param_reset")
                 
             # Text Splitter Parameters  
             with st.expander("Text Splitter"):
-                max_token = c_t.model_max_context_limit[st.session_state.get("endpoint").split("@")[0]]
+                max_token = a_u.model_max_context_limit[st.session_state.get("endpoint").split("@")[0]]
                 chunk_size = st.slider("chunk_size", key="slider_chunk_size", min_value=200, max_value=max_token, step=100, # max_token given by model_max_context_limit
                                        value=st.session_state.chunk_size,
                                        help="The maximum size of each chunk in tokens")
@@ -50,7 +54,7 @@ def playground_tab():
                 chunk_overlap = st.slider("Chunk Overlap", key="slider_chunk_overlap", min_value=0,
                                           max_value=max_overlap, step=100, value=st.session_state.chunk_overlap,
                                           help="The number of tokens to overlap between chunks")
-                st.button("Reset", on_click=c_t.reset_slider_value, args=(c_t.splitter_reset_dict,),
+                st.button("Reset", on_click=a_u.reset_slider_value, args=(a_u.splitter_reset_dict,),
                           key="text_splitter_param_reset")
                 
             # Retriever Parameters
@@ -109,7 +113,7 @@ def playground_tab():
                 #     st.markdown("Set Max Tokens", help="The retrieved document tokens will be checked and reduced below this limit.")
                 #     st.slider("max_tokens_retrieved")
 
-                st.button("Reset", on_click=c_t.reset_slider_value, args=(c_t.retriever_reset_dict,),
+                st.button("Reset", on_click=a_u.reset_slider_value, args=(a_u.retriever_reset_dict,),
                           key="retriever_param_reset")
 
             st.session_state.applied_config = False
@@ -126,10 +130,11 @@ def playground_tab():
                     history_unaware = False
                     
         # Apply Configuration Button
-        if st.button("Apply Configuration", on_click=c_t.field_callback, args=("Configuration",), key="apply_params_config",
+        if st.button("Apply Configuration", on_click=a_u.field_callback, args=("Configuration",), key="apply_params_config",
                      type="primary"):
             st.session_state.embedding_model = embedding_model
             st.session_state.vector_selection = vector_selection
+            st.session_state.agent_selection = agent_selection
             st.session_state.model_temperature = model_temperature
             st.session_state.chunk_size = chunk_size
             st.session_state.chunk_overlap = chunk_overlap
@@ -152,9 +157,9 @@ def playground_tab():
 
         # Process Documents outside Column
         if st.session_state.applied_config:
-            process_inputs()
+            a_u.process_inputs()
             st.session_state.applied_config = False
 
     # Clear Chat History Button
     if len(st.session_state.messages) > 0:
-        st.button("🧹 Clear Chat History", key="play_clear_history", on_click=c_t.clear_history)
+        st.button("🧹 Clear Chat History", key="play_clear_history", on_click=a_u.clear_history)
