@@ -516,6 +516,38 @@ if current_chunk:
 pdf_document.close()
 output_folder = "output"
 
+#--------------------------------------------------------adobe---------------------------------------------
+
+from adobe.pdfservices.operation.auth.service_principal_credentials import ServicePrincipalCredentials
+from adobe.pdfservices.operation.exception.exceptions import ServiceApiException, ServiceUsageException, SdkException
+from adobe.pdfservices.operation.io.cloud_asset import CloudAsset
+from adobe.pdfservices.operation.io.stream_asset import StreamAsset
+from adobe.pdfservices.operation.pdf_services import PDFServices
+from adobe.pdfservices.operation.pdf_services_media_type import PDFServicesMediaType
+from adobe.pdfservices.operation.pdfjobs.jobs.export_pdf_job import ExportPDFJob
+from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_params import ExportPDFParams
+from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_target_format import ExportPDFTargetFormat
+from adobe.pdfservices.operation.pdfjobs.result.export_pdf_result import ExportPDFResult
+
+credentials = ServicePrincipalCredentials(
+    client_id=os.getenv('PDF_SERVICES_CLIENT_ID'),
+    client_secret=os.getenv('PDF_SERVICES_CLIENT_SECRET'))
+pdf_services = PDFServices(credentials=credentials)
+file = open('src/resources/Bodea Brochure.pdf', 'rb')
+input_stream = file.read()
+file.close()
+input_asset = pdf_services.upload(input_stream=input_stream, mime_type=PDFServicesMediaType.PDF)
+export_pdf_params = ExportPDFParams(target_format=ExportPDFTargetFormat.DOCX)
+export_pdf_job = ExportPDFJob(input_asset=input_asset, export_pdf_params=export_pdf_params)
+location = pdf_services.submit(export_pdf_job)
+pdf_services_response = pdf_services.get_job_result(location, ExportPDFResult)
+result_asset: CloudAsset = pdf_services_response.get_result().get_asset()
+stream_asset: StreamAsset = pdf_services.get_content(result_asset)
+output_file_path = "./Bodea Brochure.docx"
+with open(output_file_path, "wb") as file:
+    file.write(stream_asset.get_input_stream())
+
+
 print("te se qe te ve be te ne?")
 
 #https://www.jnjmedtech.com/system/files/pdf/090912-220322%20DSUS_EMEA%20Large%20Bone%20Saw%20Blades%20Product%20Brochure.pdf
